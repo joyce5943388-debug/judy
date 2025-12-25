@@ -1,12 +1,4 @@
-https://youtu.be/meJxwOmDyAQ?si=zCayLCp0gk-V9XDY
-
-幫我把這個變成網頁的背景音樂，一進入
-
-網頁就自動撥放https://youtu.be/meJxwOmDyAQ?si=zCayLCp0gk-V9XDY
-
-幫我把這個變成網頁的背景音樂，一進入
-
-網頁就自動撥放<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
@@ -14,194 +6,212 @@ https://youtu.be/meJxwOmDyAQ?si=zCayLCp0gk-V9XDY
     <title>樂齡活動影音總覽資料庫</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .aspect-video {
-            aspect-ratio: 16 / 9;
+        .aspect-video { aspect-ratio: 16 / 9; }
+        .card-hover:hover { transform: translateY(-5px); transition: all 0.3s ease; }
+        
+        /* 啟動遮罩層 */
+        #launch-overlay {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #fff5f5 0%, #fff 100%);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease;
         }
-        .active-filter {
-            background-color: #1e293b !important;
-            color: white !important;
+
+        /* 音樂控制鈕 */
+        #music-control {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 100;
         }
-        .card-active {
-            border-color: #ef4444;
-            ring: 2px;
-            ring-color: #ef4444;
+
+        /* 隱藏 YouTube 播放器 */
+        #bg-music-player {
+            position: absolute;
+            width: 0;
+            height: 0;
+            pointer-events: none;
         }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen">
 
+    <!-- 啟動遮罩 (解決自動播放限制) -->
+    <div id="launch-overlay">
+        <div class="text-center p-8 bg-white rounded-3xl shadow-xl max-w-sm border border-red-100">
+            <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <span class="text-4xl">🎵</span>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-800 mb-2">準備好開始了嗎？</h1>
+            <p class="text-slate-500 mb-8">點擊下方按鈕進入資料庫，背景音樂將同步啟動。</p>
+            <button onclick="startExperience()" class="w-full py-4 bg-red-500 text-white rounded-2xl font-bold shadow-lg shadow-red-200 hover:bg-red-600 transition-all">
+                進入並播放音樂
+            </button>
+        </div>
+    </div>
+
+    <!-- 背景音樂播放器 (隱藏) -->
+    <div id="bg-music-player"></div>
+
+    <!-- 音樂控制懸浮鈕 -->
+    <div id="music-control" class="hidden flex items-center gap-2 bg-white/80 backdrop-blur shadow-md border border-slate-200 p-2 rounded-full">
+        <button id="toggle-music" onclick="toggleMusic()" class="w-10 h-10 bg-red-500 text-white rounded-full flex items-center justify-center">
+            🔊
+        </button>
+        <span class="text-xs font-medium text-slate-600 pr-3">背景音樂</span>
+    </div>
+
     <div class="max-w-6xl mx-auto p-4 md:p-8">
-        <!-- Header -->
-        <header class="mb-8 text-center">
-            <h1 class="text-3xl font-bold text-slate-800 mb-2">樂齡活動影音總覽資料庫</h1>
-            <p class="text-slate-600">點擊下方卡片即可在網頁中直接觀賞教學影片</p>
+        <!-- 標題區 -->
+        <header class="mb-10 text-center">
+            <h1 class="text-3xl md:text-4xl font-extrabold text-slate-800 mb-3">樂齡活動影音總覽</h1>
+            <div class="h-1 w-20 bg-red-500 mx-auto rounded-full"></div>
         </header>
 
-        <!-- Video Player Section (Dynamic) -->
-        <div id="player-section" class="mb-10 hidden">
-            <div class="bg-black rounded-2xl overflow-hidden shadow-2xl">
+        <!-- 影片播放器 (點擊卡片後顯示) -->
+        <div id="video-stage" class="mb-12 hidden">
+            <div class="bg-black rounded-3xl overflow-hidden shadow-2xl relative">
+                <button onclick="closeVideo()" class="absolute top-4 right-4 z-10 bg-black/50 hover:bg-black/80 text-white w-10 h-10 rounded-full">✕</button>
                 <div class="aspect-video">
-                    <iframe id="main-player" class="w-full h-full" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                    <iframe id="main-iframe" class="w-full h-full" src="" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
                 </div>
             </div>
-            <div class="mt-4 p-4 bg-white rounded-xl shadow-sm border border-slate-200">
-                <h2 id="playing-title" class="text-xl font-bold text-slate-800">正在播放</h2>
-                <p id="playing-desc" class="text-slate-600 text-sm mt-1"></p>
+            <div class="mt-6 p-6 bg-white rounded-2xl border border-slate-200 shadow-sm">
+                <h2 id="current-title" class="text-2xl font-bold text-slate-800">活動標題</h2>
+                <p id="current-desc" class="text-slate-600 mt-2 leading-relaxed">活動詳細介紹...</p>
             </div>
         </div>
 
-        <!-- Filters -->
-        <div class="flex flex-wrap gap-2 mb-8 justify-center">
-            <button onclick="filterCards('all', this)" class="filter-btn active-filter px-6 py-2 bg-white text-slate-700 shadow-sm border border-slate-200 rounded-full text-sm font-medium transition-all hover:bg-slate-100">全部活動</button>
-            <button onclick="filterCards('認知', this)" class="filter-btn px-6 py-2 bg-white text-slate-700 shadow-sm border border-slate-200 rounded-full text-sm font-medium transition-all hover:bg-slate-100">認知訓練</button>
-            <button onclick="filterCards('肢體', this)" class="filter-btn px-6 py-2 bg-white text-slate-700 shadow-sm border border-slate-200 rounded-full text-sm font-medium transition-all hover:bg-slate-100">肢體律動</button>
-            <button onclick="filterCards('協調', this)" class="filter-btn px-6 py-2 bg-white text-slate-700 shadow-sm border border-slate-200 rounded-full text-sm font-medium transition-all hover:bg-slate-100">手眼協調</button>
-        </div>
-
-        <!-- Grid -->
-        <div id="activity-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- Card 1 -->
-            <div class="activity-card bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden cursor-pointer hover:shadow-md transition-all" 
-                 data-category="認知 協調" 
-                 onclick="playVideo('fhCmK93Q_yE', '記憶傳球', '結合球類運動與記憶訓練，傳球時需唸出指定內容（如姓名），增加社交互動。', this)">
-                <div class="h-40 bg-slate-200 relative">
-                    <img src="https://img.youtube.com/vi/fhCmK93Q_yE/mqdefault.jpg" class="w-full h-full object-cover" alt="記憶傳球">
-                    <div class="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-all">
-                        <div class="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center shadow-lg">
-                            <div class="w-0 h-0 border-t-[8px] border-t-transparent border-l-[12px] border-l-red-600 border-b-[8px] border-b-transparent ml-1"></div>
+        <!-- 活動卡片網格 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- 卡片 1 -->
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden card-hover cursor-pointer" 
+                 onclick="playMainVideo('fhCmK93Q_yE', '記憶傳球', '結合球類運動與記憶訓練，傳球時需唸出指定內容（如姓名），增加社交互動與專注力。')">
+                <div class="h-48 bg-slate-100 relative">
+                    <img src="https://img.youtube.com/vi/fhCmK93Q_yE/mqdefault.jpg" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                        <div class="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-lg">
+                            <div class="w-0 h-0 border-t-[10px] border-t-transparent border-l-[15px] border-l-red-600 border-b-[10px] border-b-transparent ml-1"></div>
                         </div>
                     </div>
                 </div>
-                <div class="p-5">
-                    <div class="flex gap-2 mb-2">
-                        <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-600">認知訓練</span>
-                    </div>
-                    <h3 class="font-bold text-slate-800">記憶傳球</h3>
-                    <p class="text-xs text-slate-500 mt-2">道具：皮球 | 重點：訓練專注力</p>
+                <div class="p-6">
+                    <span class="bg-blue-50 text-blue-600 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-3 inline-block">認知訓練</span>
+                    <h3 class="text-xl font-bold text-slate-800">記憶傳球</h3>
                 </div>
             </div>
 
-            <!-- Card 2 -->
-            <div class="activity-card bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden cursor-pointer hover:shadow-md transition-all" 
-                 data-category="肢體" 
-                 onclick="playVideo('HEzCD6jR-vU', '點仔膠 (帶動唱)', '利用本土民謠配合手勢，進行身體協調練習。懷舊曲目能引發長輩共鳴。', this)">
-                <div class="h-40 bg-slate-200 relative">
-                    <img src="https://img.youtube.com/vi/HEzCD6jR-vU/mqdefault.jpg" class="w-full h-full object-cover" alt="點仔膠">
-                    <div class="absolute inset-0 flex items-center justify-center bg-black/20 transition-all">
-                        <div class="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center shadow-lg">
-                            <div class="w-0 h-0 border-t-[8px] border-t-transparent border-l-[12px] border-l-red-600 border-b-[8px] border-b-transparent ml-1"></div>
-                        </div>
-                    </div>
+            <!-- 卡片 2 -->
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden card-hover cursor-pointer" 
+                 onclick="playMainVideo('HEzCD6jR-vU', '點仔膠 (帶動唱)', '利用本土民謠配合簡單手勢，進行身體協調與節奏練習，懷舊曲目最能引發共鳴。')">
+                <div class="h-48 bg-slate-100 relative">
+                    <img src="https://img.youtube.com/vi/HEzCD6jR-vU/mqdefault.jpg" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-black/20 flex items-center justify-center">▶</div>
                 </div>
-                <div class="p-5">
-                    <div class="flex gap-2 mb-2">
-                        <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-green-50 text-green-600">肢體律動</span>
-                    </div>
-                    <h3 class="font-bold text-slate-800">點仔膠 (帶動唱)</h3>
-                    <p class="text-xs text-slate-500 mt-2">道具：無 | 重點：節奏感訓練</p>
+                <div class="p-6">
+                    <span class="bg-green-50 text-green-600 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-3 inline-block">肢體律動</span>
+                    <h3 class="text-xl font-bold text-slate-800">點仔膠 (帶動唱)</h3>
                 </div>
             </div>
 
-            <!-- Card 3 -->
-            <div class="activity-card bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden cursor-pointer hover:shadow-md transition-all" 
-                 data-category="認知 協調" 
-                 onclick="playVideo('3_YKO9O4-Q8', '色別輪投 (紙環分類)', '日本介護型活動，練習非慣用手力量與顏色分類辨識。', this)">
-                <div class="h-40 bg-slate-200 relative">
-                    <img src="https://img.youtube.com/vi/3_YKO9O4-Q8/mqdefault.jpg" class="w-full h-full object-cover" alt="色別輪投">
-                    <div class="absolute inset-0 flex items-center justify-center bg-black/20 transition-all">
-                        <div class="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center shadow-lg">
-                            <div class="w-0 h-0 border-t-[8px] border-t-transparent border-l-[12px] border-l-red-600 border-b-[8px] border-b-transparent ml-1"></div>
-                        </div>
-                    </div>
+            <!-- 卡片 3 -->
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden card-hover cursor-pointer" 
+                 onclick="playMainVideo('3_YKO9O4-Q8', '色別輪投 (紙環分類)', '日本專業介護活動。利用報紙棒與彩色紙環，訓練長輩手部精細動作與顏色辨識。')">
+                <div class="h-48 bg-slate-100 relative">
+                    <img src="https://img.youtube.com/vi/3_YKO9O4-Q8/mqdefault.jpg" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-black/20 flex items-center justify-center">▶</div>
                 </div>
-                <div class="p-5">
-                    <div class="flex gap-2 mb-2">
-                        <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-50 text-purple-600">手眼協調</span>
-                    </div>
-                    <h3 class="font-bold text-slate-800">色別輪投 (紙環分類)</h3>
-                    <p class="text-xs text-slate-500 mt-2">道具：報紙棒、紙環 | 重點：手部精細動作</p>
-                </div>
-            </div>
-
-            <!-- Card 4 -->
-            <div class="activity-card bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden cursor-pointer hover:shadow-md transition-all" 
-                 data-category="認知 肢體" 
-                 onclick="playVideo('x4FyuKlz75w', '紅旗白旗舉起來', '訓練反應能力與聽力理解，是非常熱門的團康互動遊戲。指令可快可慢。', this)">
-                <div class="h-40 bg-slate-200 relative">
-                    <img src="https://img.youtube.com/vi/x4FyuKlz75w/mqdefault.jpg" class="w-full h-full object-cover" alt="紅旗白旗">
-                    <div class="absolute inset-0 flex items-center justify-center bg-black/20 transition-all">
-                        <div class="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center shadow-lg">
-                            <div class="w-0 h-0 border-t-[8px] border-t-transparent border-l-[12px] border-l-red-600 border-b-[8px] border-b-transparent ml-1"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="p-5">
-                    <div class="flex gap-2 mb-2">
-                        <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-600">認知訓練</span>
-                    </div>
-                    <h3 class="font-bold text-slate-800">紅旗白旗舉起來</h3>
-                    <p class="text-xs text-slate-500 mt-2">道具：紅旗、白旗 | 重點：聽覺反應</p>
-                </div>
-            </div>
-
-            <!-- Card 5 -->
-            <div class="activity-card bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden cursor-pointer hover:shadow-md transition-all" 
-                 data-category="協調" 
-                 onclick="playVideo('jJ01V3o9X8w', '彈球達人', '控制彈跳力度與精準度，將球投入容器中，強化小肌肉控制。', this)">
-                <div class="h-40 bg-slate-200 relative">
-                    <img src="https://img.youtube.com/vi/jJ01V3o9X8w/mqdefault.jpg" class="w-full h-full object-cover" alt="彈球達人">
-                    <div class="absolute inset-0 flex items-center justify-center bg-black/20 transition-all">
-                        <div class="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center shadow-lg">
-                            <div class="w-0 h-0 border-t-[8px] border-t-transparent border-l-[12px] border-l-red-600 border-b-[8px] border-b-transparent ml-1"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="p-5">
-                    <div class="flex gap-2 mb-2">
-                        <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-50 text-purple-600">手眼協調</span>
-                    </div>
-                    <h3 class="font-bold text-slate-800">彈球達人</h3>
-                    <p class="text-xs text-slate-500 mt-2">道具：乒乓球、杯子 | 重點：力度掌控</p>
+                <div class="p-6">
+                    <span class="bg-purple-50 text-purple-600 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-3 inline-block">手眼協調</span>
+                    <h3 class="text-xl font-bold text-slate-800">色別輪投 (紙環分類)</h3>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- YouTube IFrame API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
     <script>
-        function playVideo(videoId, title, desc, element) {
-            const playerSection = document.getElementById('player-section');
-            const player = document.getElementById('main-player');
-            const titleEl = document.getElementById('playing-title');
-            const descEl = document.getElementById('playing-desc');
+        let bgPlayer;
+        let isMuted = false;
 
-            // Set content
-            player.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
-            titleEl.innerText = title;
-            descEl.innerText = desc;
-
-            // Show section
-            playerSection.classList.remove('hidden');
-            playerSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-            // Highlight card
-            document.querySelectorAll('.activity-card').forEach(c => c.classList.remove('border-red-500', 'ring-2', 'ring-red-200'));
-            element.classList.add('border-red-500', 'ring-2', 'ring-red-200');
-        }
-
-        function filterCards(category, btn) {
-            const cards = document.querySelectorAll('.activity-card');
-            
-            // Toggle button styles
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active-filter'));
-            btn.classList.add('active-filter');
-
-            cards.forEach(card => {
-                if (category === 'all' || card.getAttribute('data-category').includes(category)) {
-                    card.classList.remove('hidden');
-                } else {
-                    card.classList.add('hidden');
+        // 初始化 YouTube 背景音樂
+        function onYouTubeIframeAPIReady() {
+            bgPlayer = new YT.Player('bg-music-player', {
+                height: '0',
+                width: '0',
+                videoId: 'meJxwOmDyAQ',
+                playerVars: {
+                    'autoplay': 0,
+                    'loop': 1,
+                    'playlist': 'meJxwOmDyAQ',
+                    'controls': 0
+                },
+                events: {
+                    'onReady': onPlayerReady
                 }
             });
+        }
+
+        function onPlayerReady(event) {
+            event.target.setVolume(25); // 設定適中背景音量
+        }
+
+        // 開始體驗
+        function startExperience() {
+            document.getElementById('launch-overlay').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('launch-overlay').style.display = 'none';
+                document.getElementById('music-control').classList.remove('hidden');
+            }, 500);
+
+            if (bgPlayer && bgPlayer.playVideo) {
+                bgPlayer.playVideo();
+            }
+        }
+
+        // 背景音樂開關
+        function toggleMusic() {
+            const btn = document.getElementById('toggle-music');
+            if (isMuted) {
+                bgPlayer.unMute();
+                btn.innerText = '🔊';
+                btn.classList.replace('bg-slate-400', 'bg-red-500');
+            } else {
+                bgPlayer.mute();
+                btn.innerText = '🔇';
+                btn.classList.replace('bg-red-500', 'bg-slate-400');
+            }
+            isMuted = !isMuted;
+        }
+
+        // 播放主要活動影片
+        function playMainVideo(id, title, desc) {
+            // 播放主影片時，背景音樂轉小聲
+            if (bgPlayer) bgPlayer.setVolume(5);
+
+            const stage = document.getElementById('video-stage');
+            const iframe = document.getElementById('main-iframe');
+            document.getElementById('current-title').innerText = title;
+            document.getElementById('current-desc').innerText = desc;
+
+            iframe.src = `https://www.youtube.com/embed/${id}?autoplay=1`;
+            stage.classList.remove('hidden');
+            stage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // 關閉主要影片
+        function closeVideo() {
+            const iframe = document.getElementById('main-iframe');
+            iframe.src = "";
+            document.getElementById('video-stage').classList.add('hidden');
+            
+            // 恢復背景音樂音量
+            if (bgPlayer) bgPlayer.setVolume(25);
         }
     </script>
 </body>
